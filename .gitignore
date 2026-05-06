@@ -1,0 +1,27 @@
+# Build directories
+build/
+build_x64/
+install/
+.deps/
+
+# IDE files
+.vscode/
+.vs/
+*.user
+*.suo
+*.sln
+*.vcxproj
+*.filters
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+Makefile
+install_manifest.txt
+compile_commands.json
+
+# OS files
+.DS_Store
+Thumbs.db
