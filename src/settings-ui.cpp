@@ -326,6 +326,14 @@ void MultistreamDock::setup_ui()
     placeholder->setObjectName("stats_placeholder");
     m_stats_layout->addWidget(placeholder);
 
+    // Overall stats label (bottom)
+    m_overall_stats_label = new QLabel(m_stats_panel);
+    m_overall_stats_label->setTextFormat(Qt::RichText);
+    m_overall_stats_label->setWordWrap(false);
+    m_overall_stats_label->setStyleSheet("padding: 2px 0; font-size: 11px; border-top: 1px solid #444; margin-top: 2px;");
+    m_overall_stats_label->setVisible(false);
+    m_stats_layout->addWidget(m_overall_stats_label);
+
     root->addWidget(m_stats_panel);
 
     refresh_table();
@@ -407,6 +415,11 @@ void MultistreamDock::update_controls()
         m_stream_stat_labels[i]->setVisible(false);
 
     int active_count = 0;
+    double total_bitrate_kbps = 0.0;
+    uint64_t total_bytes_sent = 0;
+    uint32_t total_dropped_frames = 0;
+    uint32_t global_render_total = 0;
+    uint32_t global_render_lagged = 0;
 
     // Show/hide placeholder
     auto *placeholder = m_stats_panel->findChild<QLabel*>("stats_placeholder");
@@ -428,10 +441,12 @@ void MultistreamDock::update_controls()
         }
 
         ++active_count;
+        total_bitrate_kbps += s.net_bitrate_kbps;
+        total_bytes_sent += s.bytes_sent;
+        total_dropped_frames += s.dropped_frames;
+        global_render_total = s.render_total_frames;
+        global_render_lagged = s.render_lagged_frames;
 
-        double lag_pct    = (s.render_total_frames > 0)
-            ? (100.0 * s.render_lagged_frames / s.render_total_frames) : 0.0;
-        QString lag_color  = (s.render_lagged_frames > 0) ? "#e8a020" : "#5cb85c";
         QString drop_color = (s.dropped_frames      > 0) ? "#e8a020" : "#5cb85c";
         double mb = static_cast<double>(s.bytes_sent) / (1024.0 * 1024.0);
         double mbps = s.net_bitrate_kbps / 1000.0;
@@ -455,22 +470,56 @@ void MultistreamDock::update_controls()
             "&nbsp;&nbsp;<span style='color:#666;'>|</span>&nbsp;&nbsp;"
             "<span style='color:#aaa;'>%5 sent</span>"
             "&nbsp;&nbsp;<span style='color:#666;'>|</span>&nbsp;&nbsp;"
-            "<span style='color:%6;'>enc-drop: %7</span>"
-            "&nbsp;&nbsp;<span style='color:#666;'>|</span>&nbsp;&nbsp;"
-            "<span style='color:%8;'>render-lag: %9 (%10%)</span>")
+            "<span style='color:%6;'>enc-drop: %7</span>")
             .arg(name)
             .arg(static_cast<int>(s.net_bitrate_kbps))
             .arg(mbps, 0, 'f', 2)
             .arg(s.output_fps, 0, 'f', 2)
             .arg(sent_str)
-            .arg(drop_color).arg(s.dropped_frames)
-            .arg(lag_color).arg(s.render_lagged_frames)
-            .arg(lag_pct, 0, 'f', 1));
+            .arg(drop_color).arg(s.dropped_frames));
     }
 
     // Show placeholder only when no streams configured
     if (placeholder)
         placeholder->setVisible(all_configs.empty());
+
+    // Update overall stats label
+    if (active_count > 0) {
+        double total_mbps = total_bitrate_kbps / 1000.0;
+        double total_mb = static_cast<double>(total_bytes_sent) / (1024.0 * 1024.0);
+        QString total_sent_str;
+        if (total_mb >= 1024.0)
+            total_sent_str = QString("%1 GB").arg(total_mb / 1024.0, 0, 'f', 2);
+        else
+            total_sent_str = QString("%1 MB").arg(total_mb, 0, 'f', 1);
+
+        double lag_pct    = (global_render_total > 0)
+            ? (100.0 * global_render_lagged / global_render_total) : 0.0;
+        QString lag_color  = (global_render_lagged > 0) ? "#e8a020" : "#5cb85c";
+        QString drop_color = (total_dropped_frames > 0) ? "#e8a020" : "#5cb85c";
+
+        m_overall_stats_label->setText(QString(
+            "<span style='color:#fff;font-weight:bold;'>Total</span>"
+            "&nbsp;&nbsp;"
+            "<b style='color:#fff;'>%1 kbps</b>"
+            "<span style='color:#aaa;font-size:10px;'>&nbsp;(%2 Mbps)</span>"
+            "&nbsp;&nbsp;<span style='color:#666;'>|</span>&nbsp;&nbsp;"
+            "<span style='color:#aaa;'>%3 sent</span>"
+            "&nbsp;&nbsp;<span style='color:#666;'>|</span>&nbsp;&nbsp;"
+            "<span style='color:%4;'>enc-drop: %5</span>"
+            "&nbsp;&nbsp;<span style='color:#666;'>|</span>&nbsp;&nbsp;"
+            "<span style='color:%6;'>render-lag: %7 (%8%)</span>")
+            .arg(static_cast<int>(total_bitrate_kbps))
+            .arg(total_mbps, 0, 'f', 2)
+            .arg(total_sent_str)
+            .arg(drop_color).arg(total_dropped_frames)
+            .arg(lag_color).arg(global_render_lagged)
+            .arg(lag_pct, 0, 'f', 1));
+        
+        m_overall_stats_label->setVisible(true);
+    } else {
+        m_overall_stats_label->setVisible(false);
+    }
 
     m_stats_panel->setVisible(true);  // always visible
     m_stats_panel->update();

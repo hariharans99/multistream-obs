@@ -90,6 +90,7 @@ private:
     QWidget        *m_stats_panel;
     QVBoxLayout    *m_stats_layout;
     std::vector<QLabel *> m_stream_stat_labels;
+    QLabel         *m_overall_stats_label;
 
     MultistreamOutput *m_mgr;
 };
