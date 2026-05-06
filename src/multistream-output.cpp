@@ -106,6 +106,8 @@ void MultistreamOutput::load_settings(obs_data_t *data)
         cfg.bitrate_kbps = (uint32_t)obs_data_get_int(item, "bitrate_kbps");
         cfg.audio_bitrate_kbps = (uint32_t)obs_data_get_int(item, "audio_bitrate_kbps");
         cfg.encoder_pref = (EncoderType)obs_data_get_int(item, "encoder_pref");
+        cfg.scale_mode   = (ScalingMode)obs_data_get_int(item, "scale_mode");
+        cfg.sharpening   = (float)obs_data_get_double(item, "sharpening");
         cfg.enabled = obs_data_get_bool(item, "enabled");
 
         // Validate missing or invalid values
@@ -140,6 +142,8 @@ void MultistreamOutput::save_settings(obs_data_t *data) const
         obs_data_set_int(item, "bitrate_kbps", cfg.bitrate_kbps);
         obs_data_set_int(item, "audio_bitrate_kbps", cfg.audio_bitrate_kbps);
         obs_data_set_int(item, "encoder_pref", (int)cfg.encoder_pref);
+        obs_data_set_int(item, "scale_mode", (int)cfg.scale_mode);
+        obs_data_set_double(item, "sharpening", (double)cfg.sharpening);
         obs_data_set_bool(item, "enabled", cfg.enabled);
 
         obs_data_array_push_back(array, item);

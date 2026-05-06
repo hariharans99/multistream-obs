@@ -72,6 +72,12 @@ private:
     mutable uint64_t            m_prev_time_ns  = 0;
     mutable double              m_cached_bitrate_kbps = 0.0;
 
+    // ── Phase 2: Custom Rendering ────────────────────────────────────────────
+    gs_effect_t                *m_scaling_effect = nullptr;
+    gs_texrender_t             *m_texrender      = nullptr;
+
+    static void render_callback(void *param, uint32_t cx, uint32_t cy);
+
     // OBS output signal callbacks (static, use param to get `this`)
     static void on_start(void *param, calldata_t *data);
     static void on_stop(void *param, calldata_t *data);

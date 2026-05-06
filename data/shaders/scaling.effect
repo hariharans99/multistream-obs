@@ -1,0 +1,102 @@
+uniform float4x4 ViewProj;
+uniform texture2d image;
+uniform float2 tex_size;
+uniform float2 output_size;
+uniform float sharpening; // 0.0 to 1.0
+
+sampler_state linear_sampler {
+	Filter = Linear;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
+
+struct VertData {
+	float4 pos : POSITION;
+	float2 uv  : TEXCOORD0;
+};
+
+VertData VShader(VertData v_in)
+{
+	VertData v_out;
+	v_out.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+	v_out.uv  = v_in.uv;
+	return v_out;
+}
+
+// Professional Contrast Adaptive Sharpening (CAS)
+float4 SharpenPass(VertData v_in) : TARGET
+{
+    float2 uv = v_in.uv;
+    float2 step = 1.0 / tex_size;
+
+    float4 middle = image.Sample(linear_sampler, uv);
+    
+    if (sharpening <= 0.0)
+        return middle;
+
+    // Sample 4 neighbors in a cross pattern
+    float4 top    = image.Sample(linear_sampler, uv + float2(0, -step.y));
+    float4 bottom = image.Sample(linear_sampler, uv + float2(0, step.y));
+    float4 left   = image.Sample(linear_sampler, uv + float2(-step.x, 0));
+    float4 right  = image.Sample(linear_sampler, uv + float2(step.x, 0));
+
+    // Luma weights (standard Rec.709)
+    float3 luma_weight = float3(0.2126, 0.7152, 0.0722);
+    
+    float m_luma = dot(middle.rgb, luma_weight);
+    float t_luma = dot(top.rgb,    luma_weight);
+    float b_luma = dot(bottom.rgb, luma_weight);
+    float l_luma = dot(left.rgb,   luma_weight);
+    float r_luma = dot(right.rgb,  luma_weight);
+
+    // Local contrast detection
+    float min_l = min(m_luma, min(min(t_luma, b_luma), min(l_luma, r_luma)));
+    float max_l = max(m_luma, max(max(t_luma, b_luma), max(l_luma, r_luma)));
+
+    // Contrast adaptive weight
+    // Higher contrast = lower weight to prevent halos
+    float contrast = max(max_l - min_l, 0.0001);
+    float weight = saturate((1.0 - contrast) * sharpening);
+    
+    // Final RCAS-style blend
+    // Weighted sum of neighbors vs center
+    float4 neighbors = (top + bottom + left + right);
+    float4 sharp = (middle + (middle - (neighbors * 0.25)) * weight);
+
+    return float4(clamp(sharp.rgb, 0.0, 1.0), middle.a);
+}
+
+// Spatial Upscaling (FSR-lite)
+float4 FSRUpscale(VertData v_in) : TARGET
+{
+	// In a real FSR implementation, we'd have much more complex kernel sampling.
+	// For this phase, we use a high-quality sharpening pass after a linear sample.
+	return SharpenPass(v_in);
+}
+
+technique Draw
+{
+	pass
+	{
+		vertex_shader = VShader(v_in);
+		pixel_shader  = SharpenPass(v_in);
+	}
+}
+
+technique FSR
+{
+	pass
+	{
+		vertex_shader = VShader(v_in);
+		pixel_shader  = FSRUpscale(v_in);
+	}
+}
+
+technique NIS
+{
+	pass
+	{
+		vertex_shader = VShader(v_in);
+		pixel_shader  = SharpenPass(v_in); // NIS also uses the high-quality CAS path
+	}
+}

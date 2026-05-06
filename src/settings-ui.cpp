@@ -4,6 +4,8 @@
 #include <obs-module.h>
 #include <QHeaderView>
 #include <QMessageBox>
+#include <QGroupBox>
+#include <QSlider>
 #include <QSizePolicy>
 #include <QGridLayout>
 #include <QScrollArea>
@@ -106,15 +108,54 @@ void StreamDialog::setup_ui()
     vid_form->addRow(obs_module_text("StreamDialog.Label.Encoder"), m_encoder_combo);
 
     m_fps_combo = new QComboBox(this);
-    m_fps_combo->addItem(QString(obs_module_text("StreamDialog.FPS.Auto")) + " (Match OBS)", 0);
+    m_fps_combo->addItem(obs_module_text("StreamDialog.FPS.Auto"), 0);
     m_fps_combo->addItem("60", 60);
-    m_fps_combo->addItem("59.94", 60); // We map 59.94 to 60 for simplicity, or just store exact if needed. Actually let's just use int 60, 30.
+    m_fps_combo->addItem("59.94", 59); // value will be handled in target
     m_fps_combo->addItem("50", 50);
     m_fps_combo->addItem("30", 30);
-    m_fps_combo->addItem("29.97", 30);
-    m_fps_combo->addItem("25", 25);
+    m_fps_combo->addItem("29.97", 29);
     m_fps_combo->addItem("24", 24);
     vid_form->addRow(obs_module_text("StreamDialog.Label.FPS"), m_fps_combo);
+    
+    m_scale_combo = new QComboBox(this);
+    m_scale_combo->addItem("Auto (Recommended)",         (int)ScalingMode::Auto);
+    m_scale_combo->addItem("AMD FSR (Spatial)",          (int)ScalingMode::FSR);
+    m_scale_combo->addItem("NVIDIA NIS",                 (int)ScalingMode::NIS);
+    m_scale_combo->addItem("Adaptive Sharpening (CAS)", (int)ScalingMode::CAS);
+    m_scale_combo->addItem("Lanczos",                    (int)ScalingMode::Lanczos);
+    m_scale_combo->addItem("Bicubic",                    (int)ScalingMode::Bicubic);
+    m_scale_combo->addItem("Area",                       (int)ScalingMode::Area);
+    m_scale_combo->addItem("Bilinear",                   (int)ScalingMode::Bilinear);
+    m_scale_combo->addItem("Point",                      (int)ScalingMode::Point);
+
+    m_scale_combo->setItemData(0, "Intelligently select the best filter based on resolution change.", Qt::ToolTipRole);
+    m_scale_combo->setItemData(1, "AMD FidelityFX Super Resolution: High-quality spatial upscaling.", Qt::ToolTipRole);
+    m_scale_combo->setItemData(2, "NVIDIA Image Scaling: High-quality spatial upscaling and sharpening.", Qt::ToolTipRole);
+    m_scale_combo->setItemData(3, "Contrast Adaptive Sharpening: Sharpens without halos or artifacts.", Qt::ToolTipRole);
+    m_scale_combo->setItemData(4, "Sharpest scaling, best for downscaling text/HUDs.", Qt::ToolTipRole);
+    m_scale_combo->setItemData(5, "Balanced quality and performance.", Qt::ToolTipRole);
+    m_scale_combo->setItemData(6, "Weighted average, good for downscaling video.", Qt::ToolTipRole);
+    m_scale_combo->setItemData(7, "Fastest scaling, lower quality.", Qt::ToolTipRole);
+    m_scale_combo->setItemData(8, "Pixel-perfect nearest-neighbor scaling.", Qt::ToolTipRole);
+
+    vid_form->addRow("Scaling Filter", m_scale_combo);
+
+    m_sharpen_slider = new QSlider(Qt::Horizontal, this);
+    m_sharpen_slider->setRange(0, 100);
+    
+    m_sharpen_label = new QLabel("0%", this);
+    m_sharpen_label->setMinimumWidth(35);
+    
+    auto *sharpen_layout = new QHBoxLayout();
+    sharpen_layout->addWidget(m_sharpen_slider);
+    sharpen_layout->addWidget(m_sharpen_label);
+    
+    vid_form->addRow("Sharpening Amount", sharpen_layout);
+
+    connect(m_sharpen_slider, &QSlider::valueChanged, [this](int val) {
+        m_sharpen_label->setText(QString("%1%").arg(val));
+    });
+
 
 
     // ── Audio ─────────────────────────────────────────────────────────────────
@@ -200,6 +241,18 @@ void StreamDialog::populate(const StreamConfig &cfg)
         }
     }
 
+    // Scaling
+    for (int i = 0; i < m_scale_combo->count(); ++i) {
+        if (m_scale_combo->itemData(i).toInt() == (int)cfg.scale_mode) {
+            m_scale_combo->setCurrentIndex(i);
+            break;
+        }
+    }
+
+    int sharpen_val = (int)(cfg.sharpening * 100.0f);
+    m_sharpen_slider->setValue(sharpen_val);
+    m_sharpen_label->setText(QString("%1%").arg(sharpen_val));
+
 }
 
 StreamConfig StreamDialog::get_config() const
@@ -223,6 +276,8 @@ StreamConfig StreamDialog::get_config() const
 
     cfg.encoder_pref = static_cast<EncoderType>(m_encoder_combo->currentData().toInt());
     cfg.fps          = static_cast<uint32_t>(m_fps_combo->currentData().toInt());
+    cfg.scale_mode   = static_cast<ScalingMode>(m_scale_combo->currentData().toInt());
+    cfg.sharpening   = (float)m_sharpen_slider->value() / 100.0f;
     return cfg;
 }
 

@@ -5,6 +5,18 @@
 #include <string>
 #include <cstdint>
 
+enum class ScalingMode {
+    Auto,
+    Point,
+    Bilinear,
+    Bicubic,
+    Lanczos,
+    Area,
+    FSR,
+    NIS,
+    CAS
+};
+
 // ── Configuration for one stream target ──────────────────────────────────────
 struct StreamConfig {
     // Destination
@@ -23,6 +35,8 @@ struct StreamConfig {
 
     // Encoder
     EncoderType encoder_pref = EncoderType::Auto;
+    ScalingMode scale_mode   = ScalingMode::Auto;
+    float       sharpening   = 0.0f; // 0.0 to 1.0
 
     // Display name shown in the UI table
     std::string label;              // auto-generated if empty

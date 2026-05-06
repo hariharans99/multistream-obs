@@ -41,6 +41,9 @@ private:
     QSpinBox    *m_bitrate_spin;
     QComboBox   *m_encoder_combo;
     QComboBox   *m_fps_combo;
+    QComboBox   *m_scale_combo;
+    QSlider     *m_sharpen_slider;
+    QLabel      *m_sharpen_label;
     QSpinBox    *m_audio_bitrate_spin;
 
     static const std::vector<std::pair<QString, std::pair<uint32_t,uint32_t>>> PRESETS;
