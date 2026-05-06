@@ -106,6 +106,8 @@ if (-not (Test-Path "$OBS_BLD_DIR\libobs\Release\obs.lib")) {
                  "-DOBS_CMAKE_VERSION=3.0.0 " +
                  "-DENABLE_PLUGINS=OFF -DENABLE_FRONTEND=OFF " +
                  "-DCMAKE_ENABLE_SCRIPTING=OFF " +
+                 "-DCMAKE_VS_PLATFORM_NAME=x64 " +
+                 "-DOBS_PARENT_ARCHITECTURE=x64 " +
                  "-DOBS_VERSION_OVERRIDE=$OBS_TAG " +
                  "-DCMAKE_PREFIX_PATH=`"$PREFIX_PATH`""
 
@@ -140,6 +142,7 @@ $configPluginCmd = "cmake -S `"$SCRIPT_DIR`" -B `"$BUILD_DIR`" -G `"Ninja`" " +
                    "-DCMAKE_SYSTEM_VERSION=10.0.26100.0 " +
                    "-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=10.0.26100.0 " +
                    "-DENABLE_FRONTEND_API=ON -DENABLE_QT=ON " +
+                   "-DSKIP_DEPENDENCIES=ON " +
                    "-DCMAKE_PREFIX_PATH=`"$pluginPrefixPath`" " +
                    "-Dlibobs_DIR=`"$DEPS_DIR\lib\cmake\libobs`" " +
                    "-Dobs-frontend-api_DIR=`"$DEPS_DIR\lib\cmake\obs-frontend-api`""

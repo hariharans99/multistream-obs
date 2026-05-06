@@ -1,14 +1,25 @@
 cmake_minimum_required(VERSION 3.28...3.30)
 
+# Define project name and version first (read from buildspec.json or passed)
+# But bootstrap.cmake usually does this.
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/common/bootstrap.cmake" NO_POLICY_SCOPE)
 
 project(${_name} VERSION ${_version})
 
 option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" ON)
 option(ENABLE_QT "Use Qt functionality" ON)
+option(SKIP_DEPENDENCIES "Skip dependency downloading/building" OFF)
 
 include(compilerconfig)
-include(defaults)
+
+# defaults.cmake includes buildspec.cmake which does the dependency setup.
+if(NOT SKIP_DEPENDENCIES)
+  include(defaults)
+else()
+  # If skipping dependencies, we still need some of the logic from defaults
+  set(CMAKE_FIND_PACKAGE_TARGETS_GLOBAL TRUE)
+endif()
+
 include(helpers)
 
 add_library(${CMAKE_PROJECT_NAME} MODULE)

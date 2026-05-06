@@ -48,6 +48,12 @@ endfunction()
 
 # _setup_obs_studio: Create obs-studio build project, then build libobs and obs-frontend-api
 function(_setup_obs_studio)
+  message(STATUS "DEBUG: libobs_DIR is '${libobs_DIR}'")
+  if(libobs_DIR AND EXISTS "${libobs_DIR}")
+    message(STATUS "libobs_DIR found, skipping OBS SDK setup")
+    return()
+  endif()
+
   if(NOT libobs_DIR)
     set(_is_fresh --fresh)
   endif()
@@ -83,7 +89,6 @@ function(_setup_obs_studio)
       ${_cmake_extra}
     RESULT_VARIABLE _process_result
     COMMAND_ERROR_IS_FATAL ANY
-    OUTPUT_QUIET
   )
   message(STATUS "Configure ${label} (${arch}) - done")
 
@@ -93,7 +98,6 @@ function(_setup_obs_studio)
     WORKING_DIRECTORY "${dependencies_dir}/${_obs_destination}"
     RESULT_VARIABLE _process_result
     COMMAND_ERROR_IS_FATAL ANY
-    OUTPUT_QUIET
   )
   message(STATUS "Build ${label} (Debug - ${arch}) - done")
 
@@ -103,7 +107,6 @@ function(_setup_obs_studio)
     WORKING_DIRECTORY "${dependencies_dir}/${_obs_destination}"
     RESULT_VARIABLE _process_result
     COMMAND_ERROR_IS_FATAL ANY
-    OUTPUT_QUIET
   )
   message(STATUS "Build ${label} (Reelase - ${arch}) - done")
 
@@ -114,7 +117,6 @@ function(_setup_obs_studio)
     WORKING_DIRECTORY "${dependencies_dir}/${_obs_destination}"
     RESULT_VARIABLE _process_result
     COMMAND_ERROR_IS_FATAL ANY
-    OUTPUT_QUIET
   )
   execute_process(
     COMMAND
@@ -122,7 +124,6 @@ function(_setup_obs_studio)
     WORKING_DIRECTORY "${dependencies_dir}/${_obs_destination}"
     RESULT_VARIABLE _process_result
     COMMAND_ERROR_IS_FATAL ANY
-    OUTPUT_QUIET
   )
   message(STATUS "Install ${label} (${arch}) - done")
 endfunction()

@@ -141,6 +141,9 @@ bool StreamTarget::create_video_encoder()
 {
     obs_data_t *settings = obs_data_create();
     obs_data_set_int(settings, "bitrate", static_cast<long long>(m_config.bitrate_kbps));
+    obs_data_set_string(settings, "rate_control", "CBR");
+    obs_data_set_int(settings, "width",  m_config.width);
+    obs_data_set_int(settings, "height", m_config.height);
     obs_data_set_int(settings, "keyint_sec", 2);   // 2-second keyframe interval (standard)
 
     if (m_config.fps > 0) {
