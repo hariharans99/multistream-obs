@@ -8,14 +8,11 @@
 #include <mutex>
 #include <string>
 
-class VideoScaler;
-
 /**
  * StreamTarget — owns a single output stream:
  *  - One video encoder (at the configured resolution + bitrate)
  *  - One audio encoder (AAC at the configured bitrate)
  *  - One RTMP output
- *  - One VideoScaler for aspect-ratio-aware rescaling
  *
  * Lifecycle:
  *   create (ctor) → configure() → start() → [running] → stop() → ~StreamTarget()

@@ -5,13 +5,6 @@
 #include <string>
 #include <cstdint>
 
-// ── Aspect ratio handling mode ────────────────────────────────────────────────
-enum class AspectMode {
-    Letterbox,  // Preserve content with black bars (default)
-    Crop,       // Center-crop and zoom to fill target
-    Stretch     // Scale directly (may distort)
-};
-
 // ── Configuration for one stream target ──────────────────────────────────────
 struct StreamConfig {
     // Destination
@@ -31,14 +24,12 @@ struct StreamConfig {
     // Encoder
     EncoderType encoder_pref = EncoderType::Auto;
 
-    // Aspect ratio handling
-    AspectMode  aspect_mode = AspectMode::Letterbox;
-
     // Display name shown in the UI table
     std::string label;              // auto-generated if empty
 
     bool        enabled     = true;
 };
+
 
 // ── Runtime stats (read-only, updated by the output thread) ──────────────────
 struct StreamStats {

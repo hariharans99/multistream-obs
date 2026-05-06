@@ -41,7 +41,6 @@ private:
     QSpinBox    *m_bitrate_spin;
     QComboBox   *m_encoder_combo;
     QComboBox   *m_fps_combo;
-    QComboBox   *m_aspect_combo;
     QSpinBox    *m_audio_bitrate_spin;
 
     static const std::vector<std::pair<QString, std::pair<uint32_t,uint32_t>>> PRESETS;
@@ -75,9 +74,8 @@ private:
         COL_LABEL   = 1,
         COL_RES     = 2,
         COL_BITRATE = 3,
-        COL_AR_MODE = 4,
-        COL_STATUS  = 5,
-        COL_COUNT   = 6
+        COL_STATUS  = 4,
+        COL_COUNT   = 5
     };
 
     QTableWidget   *m_table;

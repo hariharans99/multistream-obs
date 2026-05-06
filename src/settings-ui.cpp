@@ -116,11 +116,6 @@ void StreamDialog::setup_ui()
     m_fps_combo->addItem("24", 24);
     vid_form->addRow(obs_module_text("StreamDialog.Label.FPS"), m_fps_combo);
 
-    m_aspect_combo = new QComboBox(this);
-    m_aspect_combo->addItem(obs_module_text("StreamDialog.AspectMode.Letterbox"), (int)AspectMode::Letterbox);
-    m_aspect_combo->addItem(obs_module_text("StreamDialog.AspectMode.Crop"),      (int)AspectMode::Crop);
-    m_aspect_combo->addItem(obs_module_text("StreamDialog.AspectMode.Stretch"),   (int)AspectMode::Stretch);
-    vid_form->addRow(obs_module_text("StreamDialog.Label.AspectMode"), m_aspect_combo);
 
     // ── Audio ─────────────────────────────────────────────────────────────────
     auto *aud_grp  = new QGroupBox("Audio", this);
@@ -205,13 +200,6 @@ void StreamDialog::populate(const StreamConfig &cfg)
         }
     }
 
-    // Aspect mode
-    for (int i = 0; i < m_aspect_combo->count(); ++i) {
-        if (m_aspect_combo->itemData(i).toInt() == (int)cfg.aspect_mode) {
-            m_aspect_combo->setCurrentIndex(i);
-            break;
-        }
-    }
 }
 
 StreamConfig StreamDialog::get_config() const
@@ -235,7 +223,6 @@ StreamConfig StreamDialog::get_config() const
 
     cfg.encoder_pref = static_cast<EncoderType>(m_encoder_combo->currentData().toInt());
     cfg.fps          = static_cast<uint32_t>(m_fps_combo->currentData().toInt());
-    cfg.aspect_mode  = static_cast<AspectMode>(m_aspect_combo->currentData().toInt());
     return cfg;
 }
 
@@ -264,18 +251,16 @@ void MultistreamDock::setup_ui()
     // ── Table (config columns only) ──────────────────────────────────────────────
     m_table = new QTableWidget(0, COL_COUNT, this);
     m_table->setHorizontalHeaderLabels({
-        "#", "Label", "Resolution", "Target Bitrate", "Aspect Mode", "Status"
+        "#", "Label", "Resolution", "Target Bitrate", "Status"
     });
     m_table->horizontalHeader()->setSectionResizeMode(COL_NUM,     QHeaderView::Fixed);
     m_table->horizontalHeader()->setSectionResizeMode(COL_LABEL,   QHeaderView::Stretch);
     m_table->horizontalHeader()->setSectionResizeMode(COL_RES,     QHeaderView::Fixed);
     m_table->horizontalHeader()->setSectionResizeMode(COL_BITRATE, QHeaderView::Fixed);
-    m_table->horizontalHeader()->setSectionResizeMode(COL_AR_MODE, QHeaderView::Fixed);
     m_table->horizontalHeader()->setSectionResizeMode(COL_STATUS,  QHeaderView::Fixed);
     m_table->setColumnWidth(COL_NUM,      28);
     m_table->setColumnWidth(COL_RES,     110);
     m_table->setColumnWidth(COL_BITRATE,  95);
-    m_table->setColumnWidth(COL_AR_MODE,  80);
     m_table->setColumnWidth(COL_STATUS,   65);
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -378,9 +363,6 @@ void MultistreamDock::refresh_table()
         set_cell(COL_RES,     QString("%1×%2").arg(c.width).arg(c.height));
         set_cell(COL_BITRATE, QString("%1 kbps").arg(c.bitrate_kbps));
 
-        const char *ar_str = c.aspect_mode == AspectMode::Letterbox ? "Letterbox" :
-                             c.aspect_mode == AspectMode::Crop      ? "Crop+Zoom" : "Stretch";
-        set_cell(COL_AR_MODE, ar_str);
 
         // Status with color
         auto *status_item = m_table->item(i, COL_STATUS);

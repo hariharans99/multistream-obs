@@ -20,7 +20,6 @@ target_sources(
     src/plugin-main.cpp
     src/multistream-output.cpp
     src/stream-target.cpp
-    src/video-scaler.cpp
     src/settings-ui.cpp
     src/util/hw-capability.cpp
     src/util/logger.cpp
