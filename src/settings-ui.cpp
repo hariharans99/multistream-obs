@@ -257,11 +257,10 @@ void MultistreamDock::setup_ui()
     m_table->horizontalHeader()->setSectionResizeMode(COL_LABEL,   QHeaderView::Stretch);
     m_table->horizontalHeader()->setSectionResizeMode(COL_RES,     QHeaderView::Fixed);
     m_table->horizontalHeader()->setSectionResizeMode(COL_BITRATE, QHeaderView::Fixed);
-    m_table->horizontalHeader()->setSectionResizeMode(COL_STATUS,  QHeaderView::Fixed);
+    m_table->horizontalHeader()->setSectionResizeMode(COL_STATUS,  QHeaderView::Stretch);
     m_table->setColumnWidth(COL_NUM,      28);
     m_table->setColumnWidth(COL_RES,     110);
     m_table->setColumnWidth(COL_BITRATE,  95);
-    m_table->setColumnWidth(COL_STATUS,   65);
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_table->setAlternatingRowColors(true);
@@ -372,23 +371,15 @@ void MultistreamDock::refresh_table()
         set_cell(COL_BITRATE, QString("%1 kbps").arg(c.bitrate_kbps));
 
 
-        // Status with color
-        auto *status_item = m_table->item(i, COL_STATUS);
-        if (!status_item) {
-            status_item = new QTableWidgetItem;
-            status_item->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-            m_table->setItem(i, COL_STATUS, status_item);
-        }
-
-        if (s.has_error) {
-            status_item->setText("✕ Error");
-            status_item->setForeground(QColor(220, 50, 50));
-        } else if (s.is_active) {
-            status_item->setText("● Live");
-            status_item->setForeground(QColor(50, 200, 80));
-        } else {
-            status_item->setText("○ Idle");
-            status_item->setForeground(QColor(150, 150, 150));
+        // Status cell widget for rich text stats
+        auto *status_widget = m_table->cellWidget(i, COL_STATUS);
+        if (!status_widget) {
+            auto *lbl = new QLabel();
+            lbl->setTextFormat(Qt::RichText);
+            lbl->setWordWrap(false);
+            lbl->setStyleSheet("padding: 2px 4px; font-size: 11px;");
+            lbl->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            m_table->setCellWidget(i, COL_STATUS, lbl);
         }
     }
 }
@@ -401,19 +392,6 @@ void MultistreamDock::update_controls()
     auto all_configs = m_mgr->get_configs();
     auto all_stats   = m_mgr->get_stats();
 
-    // Ensure we have enough stream stat labels
-    while ((int)m_stream_stat_labels.size() < (int)all_configs.size()) {
-        auto *lbl = new QLabel(m_stats_panel);
-        lbl->setTextFormat(Qt::RichText);
-        lbl->setWordWrap(false);
-        lbl->setStyleSheet("padding: 1px 0; font-size: 11px;");
-        m_stats_layout->addWidget(lbl);
-        m_stream_stat_labels.push_back(lbl);
-    }
-    // Hide surplus labels
-    for (int i = (int)all_configs.size(); i < (int)m_stream_stat_labels.size(); ++i)
-        m_stream_stat_labels[i]->setVisible(false);
-
     int active_count = 0;
     double total_bitrate_kbps = 0.0;
     uint64_t total_bytes_sent = 0;
@@ -421,22 +399,24 @@ void MultistreamDock::update_controls()
     uint32_t global_render_total = 0;
     uint32_t global_render_lagged = 0;
 
-    // Show/hide placeholder
-    auto *placeholder = m_stats_panel->findChild<QLabel*>("stats_placeholder");
-
     for (int i = 0; i < (int)all_configs.size(); ++i) {
-        auto *lbl         = m_stream_stat_labels[i];
+        auto *lbl = qobject_cast<QLabel*>(m_table->cellWidget(i, COL_STATUS));
+        if (!lbl) continue;
+
         const auto &c     = all_configs[i];
         const StreamStats &s = (i < (int)all_stats.size())
             ? all_stats[i] : StreamStats{};
 
-        lbl->setVisible(true);
+        if (s.has_error) {
+            lbl->setText(
+                QString("<span style='color:#dc3232;font-weight:bold;'>✕ Error</span>"
+                        "&nbsp;&nbsp;<span style='color:#aaa;'>%1</span>")
+                .arg(QString::fromStdString(s.error_message)));
+            continue;
+        }
 
         if (!s.is_active) {
-            lbl->setText(
-                QString("<span style='color:#555;'>○ %1 &mdash; Idle</span>")
-                .arg(QString::fromStdString(
-                    c.label.empty() ? "Stream " + std::to_string(i+1) : c.label)));
+            lbl->setText("<span style='color:#999;'>○ Idle</span>");
             continue;
         }
 
@@ -461,17 +441,16 @@ void MultistreamDock::update_controls()
             sent_str = QString("%1 MB").arg(mb, 0, 'f', 1);
 
         lbl->setText(QString(
-            "<span style='color:#5cb85c;font-weight:bold;'>● %1</span>"
+            "<span style='color:#5cb85c;font-weight:bold;'>● Live</span>"
             "&nbsp;&nbsp;"
-            "<b style='color:#fff;'>%2 kbps</b>"
-            "<span style='color:#aaa;font-size:10px;'>&nbsp;(%3 Mbps)</span>"
+            "<b style='color:#fff;'>%1 kbps</b>"
+            "<span style='color:#aaa;font-size:10px;'>&nbsp;(%2 Mbps)</span>"
             "&nbsp;&nbsp;<span style='color:#666;'>|</span>&nbsp;&nbsp;"
-            "<span style='color:#8ab4f8;'>%4 fps</span>"
+            "<span style='color:#8ab4f8;'>%3 fps</span>"
             "&nbsp;&nbsp;<span style='color:#666;'>|</span>&nbsp;&nbsp;"
-            "<span style='color:#aaa;'>%5 sent</span>"
+            "<span style='color:#aaa;'>%4 sent</span>"
             "&nbsp;&nbsp;<span style='color:#666;'>|</span>&nbsp;&nbsp;"
-            "<span style='color:%6;'>enc-drop: %7</span>")
-            .arg(name)
+            "<span style='color:%5;'>enc-drop: %6</span>")
             .arg(static_cast<int>(s.net_bitrate_kbps))
             .arg(mbps, 0, 'f', 2)
             .arg(s.output_fps, 0, 'f', 2)
@@ -480,6 +459,7 @@ void MultistreamDock::update_controls()
     }
 
     // Show placeholder only when no streams configured
+    auto *placeholder = m_stats_panel->findChild<QLabel*>("stats_placeholder");
     if (placeholder)
         placeholder->setVisible(all_configs.empty());
 

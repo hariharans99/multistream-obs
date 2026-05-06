@@ -89,7 +89,6 @@ private:
     // Live stats panel (below the table, one label per active stream)
     QWidget        *m_stats_panel;
     QVBoxLayout    *m_stats_layout;
-    std::vector<QLabel *> m_stream_stat_labels;
     QLabel         *m_overall_stats_label;
 
     MultistreamOutput *m_mgr;
