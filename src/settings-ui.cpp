@@ -72,6 +72,38 @@ void StreamDialog::setup_ui()
     m_chat_edit->setPlaceholderText("https://...");
     dest_form->addRow(obs_module_text("StreamDialog.Label.ChatUrl"), m_chat_edit);
 
+    // ── Quick Presets ──────────────────────────────────────────────────────────
+    auto *preset_grp = new QGroupBox("Quick Presets", this);
+    auto *preset_layout = new QHBoxLayout(preset_grp);
+    
+    auto *ultra_btn = new QPushButton("Ultra Quality (4K)", this);
+    auto *high_btn  = new QPushButton("High Quality (1080p)", this);
+    auto *med_btn   = new QPushButton("Medium Quality (720p)", this);
+    auto *norm_btn  = new QPushButton("Normal Quality (480p)", this);
+
+    ultra_btn->setStyleSheet("background-color: #3d3d4c; font-weight: bold;");
+    high_btn->setStyleSheet("background-color: #3d4c3d; font-weight: bold;");
+    med_btn->setStyleSheet("background-color: #4c4c3d; font-weight: bold;");
+    norm_btn->setStyleSheet("background-color: #4c3d3d; font-weight: bold;");
+
+    preset_layout->addWidget(ultra_btn);
+    preset_layout->addWidget(high_btn);
+    preset_layout->addWidget(med_btn);
+    preset_layout->addWidget(norm_btn);
+
+    auto apply_quality = [this](int res_idx, int bitrate, int audio_bitrate, float sharpening) {
+        m_res_combo->setCurrentIndex(res_idx);
+        m_bitrate_spin->setValue(bitrate);
+        m_audio_bitrate_spin->setValue(audio_bitrate);
+        m_sharpen_slider->setValue((int)(sharpening * 100.0f));
+    };
+
+    // High-Fidelity Presets (60fps Optimized)
+    connect(ultra_btn, &QPushButton::clicked, [=]() { apply_quality(0, 40000, 192, 0.50f); }); // 4K (40 Mbps)
+    connect(high_btn,  &QPushButton::clicked, [=]() { apply_quality(2, 10000, 160, 0.40f); }); // 1080p (10 Mbps)
+    connect(med_btn,   &QPushButton::clicked, [=]() { apply_quality(3, 6000, 128, 0.25f); });  // 720p (6 Mbps)
+    connect(norm_btn,  &QPushButton::clicked, [=]() { apply_quality(4, 2500, 128, 0.10f); });  // 480p (2.5 Mbps)
+
     // ── Video ─────────────────────────────────────────────────────────────────
     auto *vid_grp  = new QGroupBox("Video", this);
     auto *vid_form = new QFormLayout(vid_grp);
@@ -194,6 +226,7 @@ void StreamDialog::setup_ui()
             });
 
     root->addWidget(dest_grp);
+    root->addWidget(preset_grp);
     root->addWidget(vid_grp);
     root->addWidget(aud_grp);
     root->addWidget(btns);
