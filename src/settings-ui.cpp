@@ -59,6 +59,17 @@ void StreamDialog::setup_ui()
     m_label_edit->setPlaceholderText("Stream 1");
     dest_form->addRow("Label", m_label_edit);
 
+    m_platform_combo = new QComboBox(this);
+    m_platform_combo->addItem("YouTube Live", "youtube");
+    m_platform_combo->addItem("Twitch",       "twitch");
+    m_platform_combo->addItem("Kick",         "kick");
+    m_platform_combo->addItem("Facebook",     "facebook");
+    m_platform_combo->addItem("TikTok",       "tiktok");
+    m_platform_combo->addItem("Instagram",    "instagram");
+    m_platform_combo->addItem("X (Twitter)",  "x");
+    m_platform_combo->addItem("Trovo",        "trovo");
+    dest_form->addRow("Target Platform", m_platform_combo);
+
     m_url_edit = new QLineEdit(this);
     m_url_edit->setPlaceholderText("rtmp://live.twitch.tv/app");
     dest_form->addRow(obs_module_text("StreamDialog.Label.URL"), m_url_edit);
@@ -98,11 +109,43 @@ void StreamDialog::setup_ui()
         m_sharpen_slider->setValue((int)(sharpening * 100.0f));
     };
 
-    // High-Fidelity Presets (60fps Optimized)
-    connect(ultra_btn, &QPushButton::clicked, [=]() { apply_quality(0, 40000, 192, 0.50f); }); // 4K (40 Mbps)
-    connect(high_btn,  &QPushButton::clicked, [=]() { apply_quality(2, 10000, 160, 0.40f); }); // 1080p (10 Mbps)
-    connect(med_btn,   &QPushButton::clicked, [=]() { apply_quality(3, 6000, 128, 0.25f); });  // 720p (6 Mbps)
-    connect(norm_btn,  &QPushButton::clicked, [=]() { apply_quality(4, 2500, 128, 0.10f); });  // 480p (2.5 Mbps)
+    auto on_preset_clicked = [this, apply_quality](int level) {
+        QString platform = m_platform_combo->currentData().toString();
+        
+        // level: 0=Ultra, 1=High, 2=Medium, 3=Low
+        
+        if (platform == "youtube") {
+            if (level == 0) apply_quality(0, 40000, 192, 0.50f); // 4K
+            if (level == 1) apply_quality(2, 10000, 128, 0.40f); // 1080p
+            if (level == 2) apply_quality(3, 6000,  128, 0.25f); // 720p
+            if (level == 3) apply_quality(4, 2500,  128, 0.10f); // 480p
+        }
+        else if (platform == "twitch" || platform == "kick" || platform == "x" || platform == "trovo") {
+            // Standard H.264 platforms
+            if (level == 0) apply_quality(2, 8000, 160, 0.40f); // 1080p Max
+            if (level == 1) apply_quality(2, 6000, 128, 0.35f); // 1080p Rec
+            if (level == 2) apply_quality(3, 4500, 128, 0.25f); // 720p60
+            if (level == 3) apply_quality(3, 2500, 128, 0.15f); // 720p30
+        }
+        else if (platform == "facebook") {
+            if (level == 0) apply_quality(2, 9000, 128, 0.40f); // 1080p Max
+            if (level == 1) apply_quality(2, 6000, 128, 0.35f); // 1080p Rec
+            if (level == 2) apply_quality(3, 4000, 128, 0.25f); // 720p
+            if (level == 3) apply_quality(4, 1500, 128, 0.10f); // 480p
+        }
+        else if (platform == "tiktok" || platform == "instagram") {
+            // Vertical specialized
+            if (level == 0) apply_quality(7, 8000, 128, 0.45f); // 1080x1920 Max
+            if (level == 1) apply_quality(7, 6000, 128, 0.40f); // 1080x1920 Rec
+            if (level == 2) apply_quality(6, 3500, 128, 0.25f); // 720x1280
+            if (level == 3) apply_quality(6, 1500, 128, 0.15f); // 720x1280 Low
+        }
+    };
+
+    connect(ultra_btn, &QPushButton::clicked, [=]() { on_preset_clicked(0); });
+    connect(high_btn,  &QPushButton::clicked, [=]() { on_preset_clicked(1); });
+    connect(med_btn,   &QPushButton::clicked, [=]() { on_preset_clicked(2); });
+    connect(norm_btn,  &QPushButton::clicked, [=]() { on_preset_clicked(3); });
 
     // ── Video ─────────────────────────────────────────────────────────────────
     auto *vid_grp  = new QGroupBox("Video", this);
@@ -238,6 +281,13 @@ void StreamDialog::populate(const StreamConfig &cfg)
     m_url_edit->setText(QString::fromStdString(cfg.rtmp_url));
     m_key_edit->setText(QString::fromStdString(cfg.stream_key));
     m_chat_edit->setText(QString::fromStdString(cfg.chat_url));
+    
+    // Platform
+    QString platform = QString::fromStdString(cfg.platform);
+    int p_idx = m_platform_combo->findData(platform);
+    if (p_idx != -1) m_platform_combo->setCurrentIndex(p_idx);
+    else m_platform_combo->setCurrentIndex(0); // Default to YouTube
+
     m_bitrate_spin->setValue(static_cast<int>(cfg.bitrate_kbps));
     m_audio_bitrate_spin->setValue(static_cast<int>(cfg.audio_bitrate_kbps));
 
@@ -293,6 +343,7 @@ StreamConfig StreamDialog::get_config() const
     cfg.rtmp_url          = m_url_edit->text().toStdString();
     cfg.stream_key        = m_key_edit->text().toStdString();
     cfg.chat_url          = m_chat_edit->text().toStdString();
+    cfg.platform          = m_platform_combo->currentData().toString().toStdString();
     cfg.bitrate_kbps      = static_cast<uint32_t>(m_bitrate_spin->value());
     cfg.audio_bitrate_kbps = static_cast<uint32_t>(m_audio_bitrate_spin->value());
 
@@ -336,7 +387,7 @@ void MultistreamDock::setup_ui()
 
     // ── Stream List Table ─────────────────────────────────────────────────────
     m_table = new QTableWidget(0, COL_COUNT, this);
-    m_table->setHorizontalHeaderLabels({"#", "Label", "Res", "Bitrate", "Status"});
+    m_table->setHorizontalHeaderLabels({"#", "Platform", "Label", "Res", "Bitrate", "Status"});
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     m_table->verticalHeader()->hide();
     connect(m_table, &QTableWidget::cellDoubleClicked, this, &MultistreamDock::on_edit_row);
@@ -400,10 +451,22 @@ void MultistreamDock::refresh_table_internal()
             ? QString("Stream %1").arg(i + 1)
             : QString::fromStdString(c.label);
 
-        set_cell(COL_NUM,     QString::number(i + 1), Qt::AlignHCenter);
-        set_cell(COL_LABEL,   lbl);
-        set_cell(COL_RES,     QString("%1×%2").arg(c.width).arg(c.height));
-        set_cell(COL_BITRATE, QString("%1 kbps").arg(c.bitrate_kbps));
+        QString plat = QString::fromStdString(c.platform);
+        if (plat == "youtube") plat = "YouTube";
+        else if (plat == "twitch") plat = "Twitch";
+        else if (plat == "kick") plat = "Kick";
+        else if (plat == "facebook") plat = "Facebook";
+        else if (plat == "tiktok") plat = "TikTok";
+        else if (plat == "instagram") plat = "Instagram";
+        else if (plat == "x") plat = "X";
+        else if (plat == "trovo") plat = "Trovo";
+        else if (plat.isEmpty()) plat = "-";
+
+        set_cell(COL_NUM,      QString::number(i + 1), Qt::AlignHCenter);
+        set_cell(COL_PLATFORM, plat, Qt::AlignHCenter);
+        set_cell(COL_LABEL,    lbl);
+        set_cell(COL_RES,      QString("%1×%2").arg(c.width).arg(c.height));
+        set_cell(COL_BITRATE,  QString("%1 kbps").arg(c.bitrate_kbps));
 
         auto *status_lbl = qobject_cast<QLabel*>(m_table->cellWidget(i, COL_STATUS));
         if (!status_lbl) {

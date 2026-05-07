@@ -102,6 +102,7 @@ void MultistreamOutput::load_settings(obs_data_t *data)
         cfg.rtmp_url = obs_data_get_string(item, "rtmp_url");
         cfg.stream_key = obs_data_get_string(item, "stream_key");
         cfg.chat_url = obs_data_get_string(item, "chat_url");
+        cfg.platform = obs_data_get_string(item, "platform");
         cfg.width = (uint32_t)obs_data_get_int(item, "width");
         cfg.height = (uint32_t)obs_data_get_int(item, "height");
         cfg.bitrate_kbps = (uint32_t)obs_data_get_int(item, "bitrate_kbps");
@@ -138,6 +139,7 @@ void MultistreamOutput::save_settings(obs_data_t *data) const
         obs_data_set_string(item, "rtmp_url", cfg.rtmp_url.c_str());
         obs_data_set_string(item, "stream_key", cfg.stream_key.c_str());
         obs_data_set_string(item, "chat_url", cfg.chat_url.c_str());
+        obs_data_set_string(item, "platform", cfg.platform.c_str());
         obs_data_set_int(item, "width", cfg.width);
         obs_data_set_int(item, "height", cfg.height);
         obs_data_set_int(item, "bitrate_kbps", cfg.bitrate_kbps);

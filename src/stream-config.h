@@ -23,6 +23,7 @@ struct StreamConfig {
     std::string rtmp_url;           // e.g. "rtmp://live.twitch.tv/app"
     std::string stream_key;
     std::string chat_url;           // e.g. "https://www.twitch.tv/popout/username/chat"
+    std::string platform;           // e.g. "YouTube", "Twitch"
 
     // Video
     uint32_t    width       = 1280;

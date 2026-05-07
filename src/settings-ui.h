@@ -38,6 +38,7 @@ private:
     QLineEdit   *m_key_edit;
     QLineEdit   *m_chat_edit;
     QLineEdit   *m_label_edit;
+    QComboBox   *m_platform_combo;
     QComboBox   *m_res_combo;
     QSpinBox    *m_custom_w;
     QSpinBox    *m_custom_h;
@@ -77,12 +78,13 @@ private:
 
     // Table columns
     enum Col {
-        COL_NUM     = 0,
-        COL_LABEL   = 1,
-        COL_RES     = 2,
-        COL_BITRATE = 3,
-        COL_STATUS  = 4,
-        COL_COUNT   = 5
+        COL_NUM      = 0,
+        COL_PLATFORM = 1,
+        COL_LABEL    = 2,
+        COL_RES      = 3,
+        COL_BITRATE  = 4,
+        COL_STATUS   = 5,
+        COL_COUNT    = 6
     };
 
     QTableWidget   *m_table;
