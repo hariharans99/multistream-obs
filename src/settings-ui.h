@@ -16,6 +16,9 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGroupBox>
+#include <QTabWidget>
+#include <QListWidget>
+#include <QSplitter>
 
 // ── Per-stream settings dialog ────────────────────────────────────────────────
 
@@ -69,9 +72,10 @@ private slots:
 private:
     void setup_ui();
     void refresh_table();
+    void refresh_table_internal();
     void update_controls();
 
-    // Table columns (config only — stats are shown in the panel below)
+    // Table columns
     enum Col {
         COL_NUM     = 0,
         COL_LABEL   = 1,
@@ -84,15 +88,9 @@ private:
     QTableWidget   *m_table;
     QPushButton    *m_add_btn;
     QPushButton    *m_remove_btn;
-    QPushButton    *m_open_chats_btn;
     QPushButton    *m_start_btn;
     QPushButton    *m_stop_btn;
     QTimer         *m_stats_timer;
-
-    // Live stats panel (below the table, one label per active stream)
-    QWidget        *m_stats_panel;
-    QVBoxLayout    *m_stats_layout;
-    QLabel         *m_overall_stats_label;
 
     MultistreamOutput *m_mgr;
 };

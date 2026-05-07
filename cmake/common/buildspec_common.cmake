@@ -3,7 +3,7 @@
 include_guard(GLOBAL)
 
 # _check_deps_version: Checks for obs-deps VERSION file in prefix paths
-function(_check_deps_version version)
+function(_check_deps_version version dependency label)
   set(found FALSE)
 
   foreach(path IN LISTS CMAKE_PREFIX_PATH)
@@ -108,7 +108,7 @@ function(_setup_obs_studio)
     RESULT_VARIABLE _process_result
     COMMAND_ERROR_IS_FATAL ANY
   )
-  message(STATUS "Build ${label} (Reelase - ${arch}) - done")
+  message(STATUS "Build ${label} (Release - ${arch}) - done")
 
   message(STATUS "Install ${label} (${arch})")
   execute_process(
@@ -169,7 +169,7 @@ function(_check_dependencies)
     set(skip FALSE)
     if(dependency STREQUAL prebuilt OR dependency STREQUAL qt6)
       if(OBS_DEPENDENCY_${dependency}_${arch}_HASH STREQUAL ${hash})
-        _check_deps_version(${version})
+        _check_deps_version("${version}" "${dependency}" "${label}")
 
         if(found)
           set(skip TRUE)

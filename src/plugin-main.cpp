@@ -35,6 +35,7 @@ bool obs_module_load(void)
               caps.has_amf   ? "YES" : "NO",
               caps.has_qsv   ? "YES" : "NO");
 
+
     // Register our custom output type with libobs
     MultistreamOutput::register_output();
 
@@ -59,5 +60,7 @@ void obs_module_unload(void)
 {
     mlog_info("Module unloading — stopping and destroying all streams...");
     MultistreamOutput::instance()->destroy_all();
+    
+
     mlog_info("Module unloaded.");
 }

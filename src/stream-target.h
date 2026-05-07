@@ -2,7 +2,7 @@
 
 #include "stream-config.h"
 #include "util/hw-capability.h"
-#include <obs.h>
+#include <obs-module.h>
 #include <memory>
 #include <atomic>
 #include <mutex>

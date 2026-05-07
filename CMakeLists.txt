@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.28...3.30)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Define project name and version first (read from buildspec.json or passed)
 # But bootstrap.cmake usually does this.
@@ -30,13 +31,19 @@ target_sources(
   PRIVATE
     src/plugin-main.cpp
     src/multistream-output.cpp
+    src/multistream-output.h
     src/stream-target.cpp
+    src/stream-target.h
+    src/stream-config.h
     src/settings-ui.cpp
+    src/settings-ui.h
     src/util/hw-capability.cpp
+    src/util/hw-capability.h
     src/util/logger.cpp
+    src/util/logger.h
 )
 
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE src)
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE src "${CMAKE_CURRENT_SOURCE_DIR}/.deps/include")
 
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 
@@ -52,8 +59,8 @@ endif()
 
 # ── Qt linkage ────────────────────────────────────────────────────────────────
 if(ENABLE_QT)
-  find_package(Qt6 COMPONENTS Widgets Core)
-  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets)
+  find_package(Qt6 COMPONENTS Widgets Core Gui)
+  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets Qt6::Gui)
   target_compile_options(
     ${CMAKE_PROJECT_NAME}
     PRIVATE $<$<C_COMPILER_ID:Clang,AppleClang>:-Wno-quoted-include-in-framework-header -Wno-comma>

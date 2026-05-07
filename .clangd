@@ -1,0 +1,8 @@
+CompileFlags:
+  Add:
+    - "-I${workspaceFolder}/src"
+    - "-I${workspaceFolder}/.deps/include"
+    - "-DENABLE_FRONTEND_API"
+    - "-DUNICODE"
+    - "-D_UNICODE"
+    - "-DWIN32"

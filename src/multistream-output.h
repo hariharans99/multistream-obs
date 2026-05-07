@@ -2,7 +2,7 @@
 
 #include "stream-target.h"
 #include "stream-config.h"
-#include <obs.h>
+#include <obs-module.h>
 #include <vector>
 #include <memory>
 #include <mutex>
@@ -56,6 +56,7 @@ public:
 
     bool start_target(int index);
     void stop_target(int index);
+
 
     // ── Callbacks (called from UI to refresh the table) ───────────────────────
     using StatsCallback = std::function<void()>;

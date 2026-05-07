@@ -1,7 +1,7 @@
 #pragma once
 
 #include "util/hw-capability.h"
-#include <obs.h>
+#include <obs-module.h>
 #include <string>
 #include <cstdint>
 
@@ -40,6 +40,7 @@ struct StreamConfig {
 
     // Display name shown in the UI table
     std::string label;              // auto-generated if empty
+
 
     bool        enabled     = true;
 };

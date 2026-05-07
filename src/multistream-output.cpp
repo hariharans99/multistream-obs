@@ -76,6 +76,7 @@ int MultistreamOutput::target_count() const
     return static_cast<int>(m_targets.size());
 }
 
+
 // ── Saving/Loading ────────────────────────────────────────────────────────────
 
 void MultistreamOutput::load_settings(obs_data_t *data)
@@ -120,8 +121,8 @@ void MultistreamOutput::load_settings(obs_data_t *data)
         obs_data_release(item);
     }
     obs_data_array_release(array);
-    
-    mlog_info("MultistreamOutput: loaded %d targets from config", static_cast<int>(m_targets.size()));
+
+    mlog_info("MultistreamOutput: loaded %d targets", static_cast<int>(m_targets.size()));
 }
 
 void MultistreamOutput::save_settings(obs_data_t *data) const
