@@ -65,4 +65,11 @@ struct StreamStats {
 
     double      output_fps          = 0.0;  // obs_get_active_fps()
     int         reconnect_count     = 0;
+
+    // Detailed metrics
+    double      avg_render_time_ms  = 0.0;
+    uint32_t    skipped_frames      = 0;    // skipped due to encoding lag
+    uint32_t    total_encoded_frames = 0;
+    std::string encoder_name;
+    std::string scale_filter;
 };

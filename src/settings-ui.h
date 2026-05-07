@@ -59,7 +59,7 @@ class MultistreamDock : public QWidget {
     Q_OBJECT
 public:
     explicit MultistreamDock(QWidget *parent = nullptr);
-    ~MultistreamDock() override = default;
+    ~MultistreamDock() override;
 
 private slots:
     void on_add_clicked();
@@ -95,4 +95,13 @@ private:
     QTimer         *m_stats_timer;
 
     MultistreamOutput *m_mgr;
+    QLabel         *m_total_kbps_lbl;
+    QLabel         *m_total_dropped_lbl;
+    QLabel         *m_total_data_lbl;
+    QLabel         *m_obs_cpu_lbl;
+    QLabel         *m_ram_usage_lbl;
+    QLabel         *m_obs_gpu_lbl;
+    QLabel         *m_render_lag_lbl;
+    QLabel         *m_encoder_lag_lbl;
+    struct os_cpu_usage_info *m_cpu_tracker;
 };

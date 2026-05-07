@@ -40,6 +40,36 @@ StreamTarget::~StreamTarget()
     obs_leave_graphics();
 }
 
+static enum obs_scale_type GetOBSScaleType(ScalingMode mode, int srcW, int srcH, int dstW, int dstH)
+{
+    if (mode == ScalingMode::Point)    return OBS_SCALE_POINT;
+    if (mode == ScalingMode::Bilinear) return OBS_SCALE_BILINEAR;
+    if (mode == ScalingMode::Bicubic)  return OBS_SCALE_BICUBIC;
+    if (mode == ScalingMode::Lanczos)  return OBS_SCALE_LANCZOS;
+    if (mode == ScalingMode::Area)     return OBS_SCALE_AREA;
+
+    // Auto Mode Logic
+    if (srcW == dstW && srcH == dstH)
+        return OBS_SCALE_DISABLE;
+
+    // Downscaling
+    if (dstW < srcW || dstH < srcH) {
+        float ratioW = (float)srcW / (float)dstW;
+        float ratioH = (float)srcH / (float)dstH;
+        float maxRatio = (ratioW > ratioH) ? ratioW : ratioH;
+
+        // Use Lanczos for significant downscales (>= 1.25x)
+        if (maxRatio >= 1.25f)
+            return OBS_SCALE_LANCZOS;
+        
+        return OBS_SCALE_BICUBIC;
+    }
+
+    // Upscaling
+    return OBS_SCALE_BICUBIC;
+}
+
+
 // ── Public control ────────────────────────────────────────────────────────────
 
 bool StreamTarget::start()
@@ -148,39 +178,36 @@ StreamStats StreamTarget::get_stats() const
             }
         }
         s.net_bitrate_kbps = m_cached_bitrate_kbps;
+
+        // Detailed statistics
+        s.avg_render_time_ms = obs_get_average_frame_time_ns() / 1000000.0;
+        s.skipped_frames     = static_cast<uint32_t>(obs_output_get_frames_dropped(m_output));
+        s.total_encoded_frames = static_cast<uint32_t>(obs_output_get_total_frames(m_output));
+        
+        s.encoder_name = hw_encoder_label(m_resolved_encoder_type);
+        
+        obs_video_info ovi;
+        int srcWidth = 0, srcHeight = 0;
+        if (obs_get_video_info(&ovi)) {
+            srcWidth  = (int)ovi.base_width;
+            srcHeight = (int)ovi.base_height;
+        }
+        
+        obs_scale_type scaleType = GetOBSScaleType(m_config.scale_mode, srcWidth, srcHeight, (int)m_config.width, (int)m_config.height);
+        switch (scaleType) {
+            case OBS_SCALE_DISABLE:  s.scale_filter = "Disabled"; break;
+            case OBS_SCALE_POINT:    s.scale_filter = "Point"; break;
+            case OBS_SCALE_BILINEAR: s.scale_filter = "Bilinear"; break;
+            case OBS_SCALE_BICUBIC:  s.scale_filter = "Bicubic"; break;
+            case OBS_SCALE_LANCZOS:  s.scale_filter = "Lanczos"; break;
+            case OBS_SCALE_AREA:     s.scale_filter = "Area"; break;
+            default:                 s.scale_filter = "Other"; break;
+        }
     }
     return s;
 }
 
 // ── Private: encoder creation ─────────────────────────────────────────────────
-static enum obs_scale_type GetOBSScaleType(ScalingMode mode, int srcW, int srcH, int dstW, int dstH)
-{
-    if (mode == ScalingMode::Point)    return OBS_SCALE_POINT;
-    if (mode == ScalingMode::Bilinear) return OBS_SCALE_BILINEAR;
-    if (mode == ScalingMode::Bicubic)  return OBS_SCALE_BICUBIC;
-    if (mode == ScalingMode::Lanczos)  return OBS_SCALE_LANCZOS;
-    if (mode == ScalingMode::Area)     return OBS_SCALE_AREA;
-
-    // Auto Mode Logic
-    if (srcW == dstW && srcH == dstH)
-        return OBS_SCALE_DISABLE;
-
-    // Downscaling
-    if (dstW < srcW || dstH < srcH) {
-        float ratioW = (float)srcW / (float)dstW;
-        float ratioH = (float)srcH / (float)dstH;
-        float maxRatio = (ratioW > ratioH) ? ratioW : ratioH;
-
-        // Use Lanczos for significant downscales (>= 1.25x)
-        if (maxRatio >= 1.25f)
-            return OBS_SCALE_LANCZOS;
-        
-        return OBS_SCALE_BICUBIC;
-    }
-
-    // Upscaling
-    return OBS_SCALE_BICUBIC;
-}
 
 bool StreamTarget::create_video_encoder()
 {
@@ -211,9 +238,11 @@ bool StreamTarget::create_video_encoder()
         obs_data_set_string(settings, "profile", "high");
         obs_data_set_string(settings, "tune",    "zerolatency");
     } else {
-        // NVENC / AMF / QSV: use "quality" preset where supported
-        obs_data_set_string(settings, "preset", "quality");
+        // NVENC / AMF / QSV: use "p4" (medium) or "quality" preset where supported
+        // OBS jim_nvenc uses "preset" with strings like "p1" to "p7" or legacy names
+        obs_data_set_string(settings, "preset", "p4"); // Medium quality, high performance
         obs_data_set_string(settings, "profile", "high");
+        obs_data_set_string(settings, "rc", "CBR");
     }
 
     std::string name = make_unique_name("ms_venc");
@@ -221,6 +250,11 @@ bool StreamTarget::create_video_encoder()
                                                name.c_str(),
                                                settings,
                                                nullptr);
+    
+    // OBS sometimes requires settings to be applied AFTER creation for certain encoders
+    if (m_video_encoder) {
+        obs_encoder_update(m_video_encoder, settings);
+    }
     obs_data_release(settings);
 
     if (!m_video_encoder) {

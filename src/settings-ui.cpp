@@ -2,6 +2,7 @@
 #include "util/hw-capability.h"
 #include "util/logger.h"
 #include <obs-module.h>
+#include <util/platform.h>
 #include <QHeaderView>
 #include <QMessageBox>
 #include <QGroupBox>
@@ -236,8 +237,6 @@ void StreamDialog::setup_ui()
         m_sharpen_label->setText(QString("%1%").arg(val));
     });
 
-
-
     // ── Audio ─────────────────────────────────────────────────────────────────
     auto *aud_grp  = new QGroupBox("Audio", this);
     auto *aud_form = new QFormLayout(aud_grp);
@@ -329,11 +328,9 @@ void StreamDialog::populate(const StreamConfig &cfg)
         }
     }
 
-
     int sharpen_val = (int)(cfg.sharpening * 100.0f);
     m_sharpen_slider->setValue(sharpen_val);
     m_sharpen_label->setText(QString("%1%").arg(sharpen_val));
-
 }
 
 StreamConfig StreamDialog::get_config() const
@@ -370,6 +367,7 @@ StreamConfig StreamDialog::get_config() const
 MultistreamDock::MultistreamDock(QWidget *parent)
     : QWidget(parent), m_mgr(MultistreamOutput::instance())
 {
+    m_cpu_tracker = nullptr;
     setWindowTitle(obs_module_text("MultiStreamDock.Title"));
     setup_ui();
 
@@ -377,6 +375,13 @@ MultistreamDock::MultistreamDock(QWidget *parent)
     m_stats_timer = new QTimer(this);
     connect(m_stats_timer, &QTimer::timeout, this, &MultistreamDock::on_stats_tick);
     m_stats_timer->start(1000);
+
+    refresh_table();
+}
+
+MultistreamDock::~MultistreamDock()
+{
+    if (m_cpu_tracker) os_cpu_usage_info_destroy(m_cpu_tracker);
 }
 
 void MultistreamDock::setup_ui()
@@ -411,14 +416,47 @@ void MultistreamDock::setup_ui()
 
     root->addLayout(toolbar);
     root->addWidget(m_table);
+
+    // ── Unified Telemetry Footer (Single Row) ────────────────────────────────
+    auto *footer = new QGroupBox("System Telemetry", this);
+    auto *footer_layout = new QHBoxLayout(footer);
+    footer_layout->setContentsMargins(10, 5, 10, 5);
+    footer_layout->setSpacing(15);
+    
+    m_total_kbps_lbl    = new QLabel("Bitrate: 0 kbps", this);
+    m_total_dropped_lbl = new QLabel("Dropped: 0", this);
+    m_total_data_lbl    = new QLabel("Total: 0 MB", this);
+    m_obs_cpu_lbl       = new QLabel("CPU: 0.0%", this);
+    m_ram_usage_lbl     = new QLabel("RAM: 0 MB", this);
+    m_obs_gpu_lbl       = new QLabel("GPU: 0.0ms", this);
+    m_render_lag_lbl    = new QLabel("R-Lag: 0 (0.0%)", this);
+    m_encoder_lag_lbl   = new QLabel("E-Lag: 0 (0.0%)", this);
+
+    m_total_kbps_lbl->setStyleSheet("font-weight: bold; color: #5cb85c;");
+    m_total_dropped_lbl->setStyleSheet("font-weight: bold; color: #dc3232;");
+    m_obs_cpu_lbl->setStyleSheet("font-weight: bold; color: #3498db;");
+    m_ram_usage_lbl->setStyleSheet("font-weight: bold; color: #9b59b6;");
+    m_obs_gpu_lbl->setStyleSheet("font-weight: bold; color: #e67e22;");
+    m_render_lag_lbl->setStyleSheet("font-weight: bold; color: #f1c40f;");
+    m_encoder_lag_lbl->setStyleSheet("font-weight: bold; color: #e74c3c;");
+
+    footer_layout->addWidget(m_total_kbps_lbl);
+    footer_layout->addWidget(m_total_dropped_lbl);
+    footer_layout->addWidget(m_total_data_lbl);
+    footer_layout->addSpacing(10);
+    footer_layout->addWidget(m_obs_cpu_lbl);
+    footer_layout->addWidget(m_ram_usage_lbl);
+    footer_layout->addWidget(m_obs_gpu_lbl);
+    footer_layout->addWidget(m_render_lag_lbl);
+    footer_layout->addWidget(m_encoder_lag_lbl);
+    footer_layout->addStretch();
+
+    root->addWidget(footer);
     
     connect(m_add_btn, &QPushButton::clicked, this, &MultistreamDock::on_add_clicked);
     connect(m_remove_btn, &QPushButton::clicked, this, &MultistreamDock::on_remove_clicked);
     connect(m_start_btn, &QPushButton::clicked, this, &MultistreamDock::on_start_all_clicked);
     connect(m_stop_btn, &QPushButton::clicked, this, &MultistreamDock::on_stop_all_clicked);
-
-    refresh_table();
-    update_controls();
 }
 
 void MultistreamDock::refresh_table()
@@ -485,20 +523,98 @@ void MultistreamDock::update_controls()
     auto all_configs = m_mgr->get_configs();
     auto all_stats   = m_mgr->get_stats();
 
+    double total_kbps = 0;
+    uint32_t total_dropped = 0;
+    uint64_t total_bytes = 0;
+    uint32_t total_render_lag = 0;
+    uint32_t total_render_frames = 0;
+    uint32_t total_encoder_lag = 0;
+    uint32_t total_encoder_frames = 0;
+
     for (int i = 0; i < (int)all_configs.size(); ++i) {
         auto *lbl = qobject_cast<QLabel*>(m_table->cellWidget(i, COL_STATUS));
         if (!lbl) continue;
 
         const StreamStats &s = (i < (int)all_stats.size()) ? all_stats[i] : StreamStats{};
 
+        if (s.is_active) {
+            total_kbps += s.net_bitrate_kbps;
+            total_dropped += s.dropped_frames;
+            total_bytes += s.bytes_sent;
+            
+            total_render_lag += s.render_lagged_frames;
+            total_render_frames = s.render_total_frames; // Use latest global count
+            
+            total_encoder_lag += s.skipped_frames;
+            total_encoder_frames += s.total_encoded_frames;
+        }
+
         if (s.has_error) {
             lbl->setText(QString("<span style='color:#dc3232;'>✕ Error: %1</span>").arg(QString::fromStdString(s.error_message)));
         } else if (s.is_active) {
-            lbl->setText(QString("<span style='color:#5cb85c;'>● Live (%1 kbps)</span>").arg(static_cast<int>(s.net_bitrate_kbps)));
+            double mb = static_cast<double>(s.bytes_sent) / (1024.0 * 1024.0);
+            QString sent_str = (mb > 1024.0) 
+                ? QString("%1 GB").arg(mb / 1024.0, 0, 'f', 2)
+                : QString("%1 MB").arg(mb, 0, 'f', 1);
+
+            lbl->setText(QString("<span style='color:#5cb85c;'>● %1 kbps | %2</span><br/><span style='font-size:9px; color:#aaa;'>%3 | %4</span>")
+                .arg(static_cast<int>(s.net_bitrate_kbps))
+                .arg(sent_str)
+                .arg(QString::fromStdString(s.encoder_name))
+                .arg(QString::fromStdString(s.scale_filter)));
         } else {
             lbl->setText("<span style='color:#999;'>○ Idle</span>");
         }
     }
+
+    if (!m_total_kbps_lbl) return;
+
+    m_total_kbps_lbl->setText(QString("Bitrate: %1 kbps").arg(static_cast<int>(total_kbps)));
+    m_total_dropped_lbl->setText(QString("Dropped: %1").arg(total_dropped));
+    
+    double total_mb = static_cast<double>(total_bytes) / (1024.0 * 1024.0);
+    if (total_mb > 1024.0) {
+        m_total_data_lbl->setText(QString("Total: %1 GB").arg(total_mb / 1024.0, 0, 'f', 2));
+    } else {
+        m_total_data_lbl->setText(QString("Total: %1 MB").arg(total_mb, 0, 'f', 1));
+    }
+
+    // Global OBS Resource Usage
+    double cpu_usage = 0.0;
+    if (obs_get_active_fps() > 0) {
+        if (!m_cpu_tracker) {
+            m_cpu_tracker = os_cpu_usage_info_start();
+        }
+        if (m_cpu_tracker) {
+            cpu_usage = os_cpu_usage_info_query(m_cpu_tracker);
+        }
+    }
+
+    double gpu_time  = obs_get_average_frame_time_ns() / 1000000.0;
+
+    m_obs_cpu_lbl->setText(QString("CPU: %1%").arg(cpu_usage, 0, 'f', 1));
+    
+    // RAM usage (Resident Set Size)
+    uint64_t rss = os_get_proc_resident_size();
+    double rss_mb = static_cast<double>(rss) / (1024.0 * 1024.0);
+    if (rss_mb > 1024.0) {
+        m_ram_usage_lbl->setText(QString("RAM: %1 GB").arg(rss_mb / 1024.0, 0, 'f', 2));
+    } else {
+        m_ram_usage_lbl->setText(QString("RAM: %1 MB").arg(rss_mb, 0, 'f', 0));
+    }
+    
+    uint64_t interval = obs_get_frame_interval_ns();
+    if (interval > 0) {
+        m_obs_gpu_lbl->setText(QString("GPU: %1ms").arg(gpu_time, 0, 'f', 2));
+    } else {
+        m_obs_gpu_lbl->setText("GPU: 0.0ms");
+    }
+
+    double render_lag_pct = (total_render_frames > 0) ? (static_cast<double>(total_render_lag) * 100.0 / total_render_frames) : 0.0;
+    double encoder_lag_pct = (total_encoder_frames > 0) ? (static_cast<double>(total_encoder_lag) * 100.0 / total_encoder_frames) : 0.0;
+
+    m_render_lag_lbl->setText(QString("Render Lag: %1 (%2%)").arg(total_render_lag).arg(render_lag_pct, 0, 'f', 1));
+    m_encoder_lag_lbl->setText(QString("Encoder Lag: %1 (%2%)").arg(total_encoder_lag).arg(encoder_lag_pct, 0, 'f', 1));
 }
 
 // ── Slots ─────────────────────────────────────────────────────────────────────
